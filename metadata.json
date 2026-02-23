@@ -1,0 +1,5 @@
+{
+  "name": "BOOST接待后台管理系统",
+  "description": "BOOST接待后台管理系统，包含卡片配置与新车意向车型库管理功能。",
+  "requestFramePermissions": []
+}
