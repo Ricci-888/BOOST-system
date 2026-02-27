@@ -51,7 +51,7 @@ export default function MaterialForm({ initialData, onSave, onCancel }: Material
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
           <h3 className="text-lg font-bold text-slate-800">
-            {initialData ? '编辑物料' : '新增物料'}
+            {initialData ? '编辑推荐' : '新增推荐'}
           </h3>
           <button onClick={onCancel} className="text-slate-400 hover:text-slate-600 transition-colors">
             <X size={20} />

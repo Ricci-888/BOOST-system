@@ -1,11 +1,24 @@
 export type CardDisplayType = '消息提醒' | '新车意向评估';
 
+export type MessageNodeType = 'question' | 'message';
+
+export interface MessageNodeOption {
+  id: string;
+  text: string;
+  targetId: string; // node id or 'end'
+}
+
+export interface MessageNodeConfig {
+  id: string;
+  type: MessageNodeType;
+  content: string; // <= 50 chars
+  options?: MessageNodeOption[]; // for question node, 2-4 options
+}
+
 export interface QuestionConfig {
   id: string;
   text: string;
   script: string;
-  enableCarAssociation: boolean;
-  associatedCars: string[]; // IDs of cars
 }
 
 export interface CardConfig {
@@ -37,6 +50,9 @@ export interface CardConfig {
     rejectCount: number;
   };
   questionChain?: QuestionConfig[];
+  enableCarAssociation?: boolean;
+  associatedCars?: string[];
+  messageNodes?: MessageNodeConfig[];
 }
 
 export interface CarModel {

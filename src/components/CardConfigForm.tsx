@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Plus, GripVertical, Trash2, Bell, AlertCircle, MessageSquare, Info, Star, Heart, CheckCircle, Zap, Shield, Settings, User, CreditCard } from 'lucide-react';
 import { CardConfig, QuestionConfig } from '../types';
+import MessagePreviewModal from './MessagePreviewModal';
 
 const ICONS = {
   Bell,
@@ -47,12 +48,19 @@ export default function CardConfigForm({ initialData, onSave, onCancel }: CardCo
         rejectPeriod: '7天',
         rejectCount: 3
       },
-      questionChain: []
+      questionChain: [],
+      enableCarAssociation: false,
+      associatedCars: [],
+      messageNodes: []
     }
   );
 
   const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  const [activeMessageNodeId, setActiveMessageNodeId] = useState<string | null>(null);
+  const [messageNodeDraggedIndex, setMessageNodeDraggedIndex] = useState<number | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const handlePageToggle = (page: string) => {
     const pages = formData.triggerPages || [];
@@ -87,9 +95,7 @@ export default function CardConfigForm({ initialData, onSave, onCancel }: CardCo
     const newQ: QuestionConfig = {
       id: `Q${Date.now()}`,
       text: '',
-      script: '',
-      enableCarAssociation: false,
-      associatedCars: []
+      script: ''
     };
     const newChain = [...(formData.questionChain || []), newQ];
     setFormData({ ...formData, questionChain: newChain });
@@ -110,12 +116,82 @@ export default function CardConfigForm({ initialData, onSave, onCancel }: CardCo
     if (activeQuestionId === id) setActiveQuestionId(null);
   };
 
+  const addMessageNode = (type: 'question' | 'message') => {
+    const nodes = formData.messageNodes || [];
+    if (nodes.length >= 5) {
+      alert('最多只能添加 5 个节点');
+      return;
+    }
+    const newNode: any = {
+      id: `N${Date.now()}`,
+      type,
+      content: '',
+    };
+    if (type === 'question') {
+      newNode.options = [
+        { id: `O${Date.now()}_1`, text: '选项1', targetId: 'end' },
+        { id: `O${Date.now()}_2`, text: '选项2', targetId: 'end' }
+      ];
+    }
+    const newNodes = [...nodes, newNode];
+    setFormData({ ...formData, messageNodes: newNodes });
+    setActiveMessageNodeId(newNode.id);
+  };
+
+  const updateActiveMessageNode = (updates: any) => {
+    if (!activeMessageNodeId) return;
+    const newNodes = (formData.messageNodes || []).map(n => 
+      n.id === activeMessageNodeId ? { ...n, ...updates } : n
+    );
+    setFormData({ ...formData, messageNodes: newNodes });
+  };
+
+  const removeMessageNode = (id: string) => {
+    const newNodes = (formData.messageNodes || []).filter(n => n.id !== id);
+    // Also remove any references to this node in options
+    const cleanedNodes = newNodes.map(n => {
+      if (n.type === 'question' && n.options) {
+        return {
+          ...n,
+          options: n.options.map(opt => 
+            opt.targetId === id ? { ...opt, targetId: 'end' } : opt
+          )
+        };
+      }
+      return n;
+    });
+    setFormData({ ...formData, messageNodes: cleanedNodes });
+    if (activeMessageNodeId === id) setActiveMessageNodeId(null);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name) {
       alert('卡片名称为必填项');
       return;
     }
+    
+    if (formData.displayType === '消息提醒') {
+      if (!formData.messageNodes || formData.messageNodes.length === 0) {
+        alert('消息提醒配置至少需要 1 个节点');
+        return;
+      }
+      
+      const emptyNode = formData.messageNodes.find(n => !n.content.trim());
+      if (emptyNode) {
+        alert('所有节点的内容都不能为空');
+        return;
+      }
+      
+      const emptyOption = formData.messageNodes.find(n => 
+        n.type === 'question' && n.options?.some(opt => !opt.text.trim())
+      );
+      if (emptyOption) {
+        alert('所有问题节点的选项内容都不能为空');
+        return;
+      }
+    }
+    
     onSave(formData);
   };
 
@@ -215,7 +291,7 @@ export default function CardConfigForm({ initialData, onSave, onCancel }: CardCo
             </div>
 
             {/* 触发逻辑配置区 */}
-            {formData.displayType === '新车意向评估' && (
+            {(formData.displayType === '新车意向评估' || formData.displayType === '消息提醒') && (
               <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                 <h4 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
                   <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm">2</span>
@@ -438,11 +514,6 @@ export default function CardConfigForm({ initialData, onSave, onCancel }: CardCo
                             <div className="text-sm font-medium text-slate-800 truncate">
                               {index + 1}. {q.text || '未填写问题'}
                             </div>
-                            {q.enableCarAssociation && (
-                              <div className="text-xs text-indigo-600 mt-1">
-                                已关联 {q.associatedCars.length} 款车型
-                              </div>
-                            )}
                           </div>
                           <button 
                             type="button"
@@ -499,39 +570,264 @@ export default function CardConfigForm({ initialData, onSave, onCancel }: CardCo
                             className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                           />
                         </div>
-
-                        <div className="pt-4 border-t border-slate-200">
-                          <div className="flex items-center justify-between mb-4">
-                            <label className="text-sm font-medium text-slate-700">关联车型库</label>
-                            <label className="relative inline-flex items-center cursor-pointer">
-                              <input 
-                                type="checkbox" 
-                                className="sr-only peer"
-                                checked={activeQuestion.enableCarAssociation}
-                                onChange={e => updateActiveQuestion({ enableCarAssociation: e.target.checked })}
-                              />
-                              <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
-                            </label>
-                          </div>
-                          
-                          {activeQuestion.enableCarAssociation && (
-                            <div className="bg-white p-4 rounded-lg border border-slate-200">
-                              <p className="text-xs text-slate-500 mb-3">当客户正面回答时，将展示以下车型：</p>
-                              {/* 这里简化为输入框，实际应为车型选择器 */}
-                              <input 
-                                type="text" 
-                                value={activeQuestion.associatedCars.join(', ')}
-                                onChange={e => updateActiveQuestion({ associatedCars: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
-                                placeholder="输入车型ID，用逗号分隔 (如: M001, M002)"
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm"
-                              />
-                            </div>
-                          )}
-                        </div>
                       </div>
                     ) : (
                       <div className="h-full flex flex-col items-center justify-center text-slate-400">
                         <p>请在左侧选择或添加一个问题</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 关联车型库区 */}
+            {formData.displayType === '新车意向评估' && (
+              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm">4</span>
+                    关联车型库
+                  </h4>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer"
+                      checked={formData.enableCarAssociation}
+                      onChange={e => setFormData({ ...formData, enableCarAssociation: e.target.checked })}
+                    />
+                    <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                  </label>
+                </div>
+                
+                {formData.enableCarAssociation && (
+                  <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                    <p className="text-sm text-slate-600 mb-3">当客户满足上述条件并完成意向评估后，将展示以下车型：</p>
+                    {/* 这里简化为输入框，实际应为车型选择器 */}
+                    <input 
+                      type="text" 
+                      value={formData.associatedCars?.join(', ') || ''}
+                      onChange={e => setFormData({ ...formData, associatedCars: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                      placeholder="输入车型ID，用逗号分隔 (如: M001, M002)"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+            {/* 消息提醒配置区 */}
+            {formData.displayType === '消息提醒' && (
+              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                <div className="flex items-center justify-between mb-6">
+                  <h4 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm">3</span>
+                    消息提醒配置
+                  </h4>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsPreviewOpen(true)}
+                      className="px-3 py-1.5 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors flex items-center gap-1"
+                    >
+                      <Zap size={16} />
+                      预览效果
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => addMessageNode('question')}
+                      className="px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center gap-1"
+                    >
+                      <Plus size={16} />
+                      添加问题节点
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => addMessageNode('message')}
+                      className="px-3 py-1.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors flex items-center gap-1"
+                    >
+                      <Plus size={16} />
+                      添加消息节点
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex gap-6 h-[400px]">
+                  {/* 左侧节点列表 */}
+                  <div className="w-1/3 border border-slate-200 rounded-lg flex flex-col bg-white overflow-hidden">
+                    <div className="p-3 border-b border-slate-200 bg-slate-50 font-medium text-sm text-slate-700">
+                      节点列表 ({formData.messageNodes?.length || 0}/5)
+                    </div>
+                    <div className="flex-1 overflow-y-auto">
+                      {formData.messageNodes?.map((node, index) => (
+                        <div 
+                          key={node.id}
+                          draggable
+                          onDragStart={(e) => {
+                            setMessageNodeDraggedIndex(index);
+                            e.dataTransfer.effectAllowed = 'move';
+                          }}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            if (messageNodeDraggedIndex === null || messageNodeDraggedIndex === index) return;
+                            const newNodes = [...(formData.messageNodes || [])];
+                            const draggedItem = newNodes[messageNodeDraggedIndex];
+                            newNodes.splice(messageNodeDraggedIndex, 1);
+                            newNodes.splice(index, 0, draggedItem);
+                            setFormData({ ...formData, messageNodes: newNodes });
+                            setMessageNodeDraggedIndex(index);
+                          }}
+                          onDragEnd={() => setMessageNodeDraggedIndex(null)}
+                          onClick={() => setActiveMessageNodeId(node.id)}
+                          className={`flex items-center gap-3 p-3 border-b border-slate-100 cursor-pointer transition-colors ${activeMessageNodeId === node.id ? 'bg-indigo-50 border-l-4 border-l-indigo-600' : 'hover:bg-slate-50 border-l-4 border-l-transparent'} ${messageNodeDraggedIndex === index ? 'opacity-50' : ''}`}
+                        >
+                          <div className="cursor-grab active:cursor-grabbing p-1 -ml-1 hover:bg-slate-200 rounded text-slate-400">
+                            <GripVertical size={16} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-slate-800 truncate">
+                              节点 {index + 1}: {node.type === 'question' ? '问题节点' : '消息节点'}
+                            </div>
+                            <div className="text-xs text-slate-500 truncate mt-0.5">
+                              {node.content || '未填写内容'}
+                            </div>
+                          </div>
+                          <button 
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); removeMessageNode(node.id); }}
+                            className="text-slate-400 hover:text-red-600 p-1"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                      {(!formData.messageNodes || formData.messageNodes.length === 0) && (
+                        <div className="p-8 text-center text-sm text-slate-400">
+                          暂无节点，请点击上方按钮添加
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 右侧编辑面板 */}
+                  <div className="w-2/3 border border-slate-200 rounded-lg p-5 bg-slate-50/50 overflow-y-auto">
+                    {activeMessageNodeId && formData.messageNodes?.find(n => n.id === activeMessageNodeId) ? (() => {
+                      const node = formData.messageNodes.find(n => n.id === activeMessageNodeId)!;
+                      const nodeIndex = formData.messageNodes.findIndex(n => n.id === activeMessageNodeId);
+                      return (
+                        <div className="space-y-5">
+                          <div className="flex justify-between items-center border-b border-slate-200 pb-3">
+                            <h5 className="font-bold text-slate-800">
+                              编辑节点 {nodeIndex + 1} ({node.type === 'question' ? '问题节点' : '消息节点'})
+                            </h5>
+                            <button 
+                              type="button"
+                              onClick={() => setActiveMessageNodeId(null)}
+                              className="text-sm text-slate-500 hover:text-slate-700"
+                            >
+                              关闭面板
+                            </button>
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">
+                              <span className="text-red-500 mr-1">*</span>{node.type === 'question' ? '问题内容' : '消息内容'} (≤ 50字)
+                            </label>
+                            <input 
+                              type="text" 
+                              maxLength={50}
+                              value={node.content}
+                              onChange={e => updateActiveMessageNode({ content: e.target.value })}
+                              placeholder={node.type === 'question' ? "例如：您对哪款车型感兴趣？" : "例如：好的，稍后会有专人为您服务。"}
+                              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                            />
+                            <div className="text-right text-xs text-slate-400 mt-1">
+                              {node.content.length}/50
+                            </div>
+                          </div>
+
+                          {node.type === 'question' && (
+                            <div>
+                              <div className="flex items-center justify-between mb-2">
+                                <label className="block text-sm font-medium text-slate-700">选项配置 (2-4个)</label>
+                                {node.options && node.options.length < 4 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newOptions = [...(node.options || []), { id: `O${Date.now()}`, text: `选项${(node.options?.length || 0) + 1}`, targetId: 'end' }];
+                                      updateActiveMessageNode({ options: newOptions });
+                                    }}
+                                    className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
+                                  >
+                                    + 添加选项
+                                  </button>
+                                )}
+                              </div>
+                              <div className="space-y-3">
+                                {node.options?.map((opt, optIndex) => (
+                                  <div key={opt.id} className="flex gap-3 items-start bg-white p-3 rounded-lg border border-slate-200">
+                                    <div className="flex-1 space-y-3">
+                                      <div>
+                                        <input 
+                                          type="text" 
+                                          value={opt.text}
+                                          onChange={e => {
+                                            const newOptions = [...(node.options || [])];
+                                            newOptions[optIndex].text = e.target.value;
+                                            updateActiveMessageNode({ options: newOptions });
+                                          }}
+                                          placeholder="选项文本"
+                                          className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                                        />
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs text-slate-500 whitespace-nowrap">跳转至:</span>
+                                        <select
+                                          value={opt.targetId}
+                                          onChange={e => {
+                                            const newOptions = [...(node.options || [])];
+                                            newOptions[optIndex].targetId = e.target.value;
+                                            updateActiveMessageNode({ options: newOptions });
+                                          }}
+                                          className="flex-1 px-2 py-1.5 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white"
+                                        >
+                                          <option value="end">结束流程</option>
+                                          {formData.messageNodes?.map((n, i) => (
+                                            n.id !== node.id && (
+                                              <option key={n.id} value={n.id}>节点 {i + 1}</option>
+                                            )
+                                          ))}
+                                        </select>
+                                      </div>
+                                    </div>
+                                    {node.options && node.options.length > 2 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const newOptions = node.options!.filter((_, i) => i !== optIndex);
+                                          updateActiveMessageNode({ options: newOptions });
+                                        }}
+                                        className="text-slate-400 hover:text-red-600 mt-1.5"
+                                      >
+                                        <Trash2 size={16} />
+                                      </button>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {node.type === 'message' && (
+                            <div className="bg-blue-50 text-blue-700 p-3 rounded-lg text-sm flex items-start gap-2">
+                              <Info size={16} className="mt-0.5 flex-shrink-0" />
+                              <p>消息节点默认提供“下一步”或“完成”按钮，按顺序进入下一节点或结束流程。</p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })() : (
+                      <div className="h-full flex flex-col items-center justify-center text-slate-400">
+                        <p>请在左侧选择或添加一个节点</p>
                       </div>
                     )}
                   </div>
@@ -558,6 +854,12 @@ export default function CardConfigForm({ initialData, onSave, onCancel }: CardCo
           </button>
         </div>
       </div>
+
+      <MessagePreviewModal
+        isOpen={isPreviewOpen}
+        nodes={formData.messageNodes || []}
+        onClose={() => setIsPreviewOpen(false)}
+      />
     </div>
   );
 }

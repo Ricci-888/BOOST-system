@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Plus, Search, Edit2, Trash2, CheckCircle2, XCircle, Filter, Info } from 'lucide-react';
 import { CardConfig as CardConfigType } from '../types';
 import CardConfigForm from '../components/CardConfigForm';
+import ConfirmModal from '../components/ConfirmModal';
 
 const MOCK_CARDS: CardConfigType[] = [
   { 
@@ -13,7 +14,28 @@ const MOCK_CARDS: CardConfigType[] = [
     triggerPages: ['01-车辆信息'],
     status: 'active', 
     creator: 'admin',
-    createdAt: '2023-10-24 10:00:00' 
+    createdAt: '2023-10-24 10:00:00',
+    messageNodes: [
+      {
+        id: 'N1',
+        type: 'message',
+        content: '欢迎光临！请问有什么可以帮您？'
+      },
+      {
+        id: 'N2',
+        type: 'question',
+        content: '您是来看车还是做保养？',
+        options: [
+          { id: 'O1', text: '看车', targetId: 'N3' },
+          { id: 'O2', text: '做保养', targetId: 'end' }
+        ]
+      },
+      {
+        id: 'N3',
+        type: 'message',
+        content: '好的，马上为您安排销售顾问。'
+      }
+    ]
   },
   { 
     id: 'C002', 
@@ -36,10 +58,52 @@ const MOCK_CARDS: CardConfigType[] = [
       rejectCount: 3
     },
     questionChain: [
-      { id: 'Q1', text: '您的爱车已经开了3年，是否有考虑过置换新车？', script: '先生/女士您好，您的车已经开了3年了，现在我们店里有非常好的置换补贴政策，您有兴趣了解一下吗？', enableCarAssociation: false, associatedCars: [] },
-      { id: 'Q2', text: '您对新能源车型感兴趣吗？', script: '现在新能源车使用成本很低，而且智能化体验非常好，您可以试驾体验一下。', enableCarAssociation: true, associatedCars: ['M001', 'M002'] }
-    ]
+      { id: 'Q1', text: '您的爱车已经开了3年，是否有考虑过置换新车？', script: '先生/女士您好，您的车已经开了3年了，现在我们店里有非常好的置换补贴政策，您有兴趣了解一下吗？' },
+      { id: 'Q2', text: '您对新能源车型感兴趣吗？', script: '现在新能源车使用成本很低，而且智能化体验非常好，您可以试驾体验一下。' }
+    ],
+    enableCarAssociation: true,
+    associatedCars: ['M001', 'M002']
   },
+  { 
+    id: 'C003', 
+    name: '服务消息', 
+    description: '询问客户对新车的价位区间意向',
+    icon: 'MessageSquare',
+    displayType: '消息提醒', 
+    triggerPages: ['05-工单预览'],
+    status: 'active', 
+    creator: 'admin',
+    createdAt: '2023-10-25 10:00:00',
+    messageNodes: [
+      {
+        id: 'N1_C003',
+        type: 'question',
+        content: '你能接受新车的价位区间？',
+        options: [
+          { id: 'O1_N1_C003', text: '10w以内', targetId: 'N2_C003' },
+          { id: 'O2_N1_C003', text: '10-20w以内', targetId: 'N3_C003' }
+        ]
+      },
+      {
+        id: 'N2_C003',
+        type: 'question',
+        content: '10w以内的新车是否XXXXX？',
+        options: [
+          { id: 'O1_N2_C003', text: '有意向', targetId: 'end' },
+          { id: 'O2_N2_C003', text: '暂无意向', targetId: 'end' }
+        ]
+      },
+      {
+        id: 'N3_C003',
+        type: 'question',
+        content: '10-20w以内的新车是否XXXXX？',
+        options: [
+          { id: 'O1_N3_C003', text: '有意向', targetId: 'end' },
+          { id: 'O2_N3_C003', text: '暂无意向', targetId: 'end' }
+        ]
+      }
+    ]
+  }
 ];
 
 const TYPE_MAP = {
@@ -52,6 +116,7 @@ export default function CardConfig() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingCard, setEditingCard] = useState<CardConfigType | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
   const filteredCards = cards.filter(card => 
     card.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -69,8 +134,13 @@ export default function CardConfig() {
   };
 
   const handleDelete = (id: string) => {
-    if (window.confirm('确定要删除该卡片配置吗？')) {
-      setCards(cards.filter(c => c.id !== id));
+    setItemToDelete(id);
+  };
+
+  const confirmDelete = () => {
+    if (itemToDelete) {
+      setCards(cards.filter(c => c.id !== itemToDelete));
+      setItemToDelete(null);
     }
   };
 
@@ -235,6 +305,14 @@ export default function CardConfig() {
           onCancel={() => setIsFormOpen(false)}
         />
       )}
+
+      <ConfirmModal
+        isOpen={!!itemToDelete}
+        title="确认删除"
+        message="您确定要删除该卡片配置吗？此操作不可恢复。"
+        onConfirm={confirmDelete}
+        onCancel={() => setItemToDelete(null)}
+      />
     </div>
   );
 }

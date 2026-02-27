@@ -11,7 +11,7 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
     { id: 'dashboard', label: '首页概览', icon: LayoutDashboard },
     { id: 'card-config', label: '卡片配置', icon: CreditCard },
     { id: 'car-library', label: '新车意向车型库', icon: CarFront },
-    { id: 'material-library', label: '物料管理', icon: Package },
+    { id: 'material-library', label: '物料意向推荐', icon: Package },
     { id: 'settings', label: '系统设置', icon: Settings },
   ];
 

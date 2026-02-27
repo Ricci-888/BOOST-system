@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Plus, Search, Edit2, Trash2, Package } from 'lucide-react';
 import { Material } from '../types';
 import MaterialForm from '../components/MaterialForm';
+import ConfirmModal from '../components/ConfirmModal';
 
 // Mock Data
 const MOCK_MATERIALS: Material[] = [
@@ -28,6 +29,7 @@ export default function MaterialLibrary() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
   const filteredMaterials = materials.filter(m => 
     m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -45,8 +47,13 @@ export default function MaterialLibrary() {
   };
 
   const handleDelete = (id: string) => {
-    if (window.confirm('确定要删除该物料吗？')) {
-      setMaterials(materials.filter(m => m.id !== id));
+    setItemToDelete(id);
+  };
+
+  const confirmDelete = () => {
+    if (itemToDelete) {
+      setMaterials(materials.filter(m => m.id !== itemToDelete));
+      setItemToDelete(null);
     }
   };
 
@@ -73,31 +80,31 @@ export default function MaterialLibrary() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="p-8">
+      <div className="flex justify-between items-center mb-8">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800">物料库管理</h2>
-          <p className="text-slate-500 mt-1">管理系统中的所有物料信息及核心卖点</p>
+          <h2 className="text-2xl font-bold text-slate-800">物料意向推荐</h2>
+          <p className="text-sm text-slate-500 mt-1">管理系统中的所有物料意向推荐信息及核心卖点</p>
         </div>
         <button 
           onClick={handleAdd}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm"
+          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors shadow-sm"
         >
-          <Plus size={20} />
-          新增物料
+          <Plus size={18} />
+          新增推荐
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
-          <div className="relative w-96">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+          <div className="relative w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input 
               type="text" 
               placeholder="搜索物料号或名称..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+              className="w-full pl-10 pr-4 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
             />
           </div>
           <div className="text-sm text-slate-500">
@@ -108,19 +115,19 @@ export default function MaterialLibrary() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 text-sm">
-                <th className="p-4 font-medium">物料号</th>
-                <th className="p-4 font-medium">物料名称</th>
-                <th className="p-4 font-medium">主要卖点</th>
-                <th className="p-4 font-medium">状态</th>
-                <th className="p-4 font-medium">更新时间</th>
-                <th className="p-4 font-medium text-right">操作</th>
+              <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                <th className="px-6 py-4 font-semibold">物料号</th>
+                <th className="px-6 py-4 font-semibold">物料名称</th>
+                <th className="px-6 py-4 font-semibold">主要卖点</th>
+                <th className="px-6 py-4 font-semibold">状态</th>
+                <th className="px-6 py-4 font-semibold">更新时间</th>
+                <th className="px-6 py-4 font-semibold text-right">操作</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-200">
               {filteredMaterials.map((material) => (
-                <tr key={material.id} className={`hover:bg-slate-50 transition-colors group ${material.status === 'inactive' ? 'opacity-60' : ''}`}>
-                  <td className="p-4">
+                <tr key={material.id} className={`hover:bg-slate-50/50 transition-colors group ${material.status === 'inactive' ? 'opacity-60' : ''}`}>
+                  <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${material.status === 'active' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-400'}`}>
                         <Package size={20} />
@@ -128,19 +135,19 @@ export default function MaterialLibrary() {
                       <span className="font-medium text-slate-800">{material.materialNo}</span>
                     </div>
                   </td>
-                  <td className="p-4 text-slate-700 font-medium">
+                  <td className="px-6 py-4 text-slate-700 font-medium">
                     {material.name}
                   </td>
-                  <td className="p-4">
-                    <div className="flex flex-wrap gap-2">
+                  <td className="px-6 py-4">
+                    <div className="flex flex-wrap gap-1">
                       {material.sellingPoints.map((point, index) => (
-                        <span key={index} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800 border border-slate-200">
+                        <span key={index} className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
                           {point}
                         </span>
                       ))}
                     </div>
                   </td>
-                  <td className="p-4">
+                  <td className="px-6 py-4">
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input 
                         type="checkbox" 
@@ -148,44 +155,51 @@ export default function MaterialLibrary() {
                         checked={material.status === 'active'}
                         onChange={() => handleToggleStatus(material.id)}
                       />
-                      <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                      <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
                     </label>
                   </td>
-                  <td className="p-4 text-slate-500 text-sm">
+                  <td className="px-6 py-4 text-slate-500 text-sm">
                     {material.updatedAt}
                   </td>
-                  <td className="p-4 text-right">
-                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button 
                         onClick={() => handleEdit(material)}
-                        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                        className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
                         title="编辑"
                       >
-                        <Edit2 size={18} />
+                        <Edit2 size={16} />
                       </button>
                       <button 
                         onClick={() => handleDelete(material.id)}
-                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
                         title="删除"
                       >
-                        <Trash2 size={18} />
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   </td>
                 </tr>
               ))}
-              {filteredMaterials.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="p-8 text-center text-slate-500">
-                    <div className="flex flex-col items-center justify-center gap-3">
-                      <Package size={48} className="text-slate-300" />
-                      <p>未找到匹配的物料信息</p>
-                    </div>
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
+          
+          {filteredMaterials.length === 0 && (
+            <div className="p-12 text-center text-slate-500">
+              <div className="flex flex-col items-center justify-center gap-3">
+                <Package size={48} className="text-slate-300" />
+                <p>未找到匹配的物料信息</p>
+              </div>
+            </div>
+          )}
+        </div>
+        
+        <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between text-sm text-slate-500">
+          <div>共 {filteredMaterials.length} 条记录</div>
+          <div className="flex gap-1">
+            <button className="px-3 py-1 border border-slate-300 rounded-md bg-white text-slate-400 cursor-not-allowed">上一页</button>
+            <button className="px-3 py-1 border border-slate-300 rounded-md bg-white hover:bg-slate-50 text-slate-700">下一页</button>
+          </div>
         </div>
       </div>
 
@@ -196,6 +210,14 @@ export default function MaterialLibrary() {
           onCancel={() => setIsFormOpen(false)}
         />
       )}
+
+      <ConfirmModal
+        isOpen={!!itemToDelete}
+        title="确认删除"
+        message="您确定要删除该物料吗？此操作不可恢复。"
+        onConfirm={confirmDelete}
+        onCancel={() => setItemToDelete(null)}
+      />
     </div>
   );
 }

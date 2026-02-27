@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Plus, Search, Edit2, Trash2, CheckCircle2, XCircle, Filter, CarFront, Info, MoreVertical } from 'lucide-react';
 import { CarModel } from '../types';
 import CarModelForm from '../components/CarModelForm';
+import ConfirmModal from '../components/ConfirmModal';
 
 const MOCK_MODELS: CarModel[] = [
   { id: 'M001', brand: '王朝', name: '比亚迪 Tang DM-p', imageUrl: 'https://picsum.photos/seed/tang/400/250', coreSellingPoints: ['1030km超长续航', '4.3秒破百动力', '超安全刀片电池', 'DiPilot智能驾驶辅助系统'], competitors: ['理想L7', '蔚来ES6', '小鹏G9'], status: 'active', updatedAt: '2023-10-24 10:00' },
@@ -14,6 +15,7 @@ export default function CarModelLibrary() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingModel, setEditingModel] = useState<CarModel | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
   const filteredModels = models.filter(model => 
     model.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -31,8 +33,13 @@ export default function CarModelLibrary() {
   };
 
   const handleDelete = (id: string) => {
-    if (window.confirm('确定要删除该车型吗？')) {
-      setModels(models.filter(m => m.id !== id));
+    setItemToDelete(id);
+  };
+
+  const confirmDelete = () => {
+    if (itemToDelete) {
+      setModels(models.filter(m => m.id !== itemToDelete));
+      setItemToDelete(null);
     }
   };
 
@@ -172,6 +179,14 @@ export default function CarModelLibrary() {
           onCancel={() => setIsFormOpen(false)} 
         />
       )}
+
+      <ConfirmModal
+        isOpen={!!itemToDelete}
+        title="确认删除"
+        message="您确定要删除该车型吗？此操作不可恢复。"
+        onConfirm={confirmDelete}
+        onCancel={() => setItemToDelete(null)}
+      />
     </div>
   );
 }

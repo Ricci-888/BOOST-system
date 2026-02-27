@@ -43,7 +43,7 @@ export default function App() {
       case 'dashboard': return '首页概览';
       case 'card-config': return '卡片配置';
       case 'car-library': return '新车意向车型库';
-      case 'material-library': return '物料管理';
+      case 'material-library': return '物料意向推荐';
       case 'settings': return '系统设置';
       default: return 'BOOST 接待管理';
     }
